@@ -5,9 +5,20 @@ import (
 	"fmt"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"text/template"
 	"log"
+	"net/http"
 	"os"
 )
+
+// define a user model
+type User struct {
+	Id    int
+	Username  string
+	City string
+	Email string
+	Password string
+}
 
 // load .env file
 func goDotEnvVariable(key string) string {
@@ -37,16 +48,99 @@ func dbConn() (db *sql.DB) {
 	return db
 }
 
-// print Connected! if connection is successful
-func main() {
+//define a template
+var tmpl = template.Must(template.ParseGlob("forms/*"))
+
+//define an Index function that includes the http write and read parameters
+func Index(w http.ResponseWriter, r *http.Request) {
+	//connect to the database
 	db := dbConn()
-	var err error
+	 // Query the database and return all rows from the user table
+	rows, err := db.Query(`SELECT "user_id", "username", "city", "email" FROM public."users"`)
+	  //Handle any errors
+	CheckError(err)
+		//Define and populate a User struct from the returned data from the query
+	usr := User{}
+		//The list of Users that will be passed to the html template
+	res := []User{}
+		//Loop through each row and populate a User
+	for rows.Next() {
+		var id int
+		var username, city, email string
+		err = rows.Scan(&id, &username, &city, &email)
+		CheckError(err)
+		usr.Id = id
+		usr.Email = email
+		usr.Username = username
+		usr.City = city
+		res = append(res, usr)
+	}
+		//write to the Index template that will range through the User struct displaying a field for the returned data
+	tmpl.ExecuteTemplate(w, "Index", res)
+	//close the database connection
+	defer db.Close()
+}
+
+func New(w http.ResponseWriter, r *http.Request) {
+	//Execute the template New which will pass the input to /insert
+	tmpl.ExecuteTemplate(w, "New", nil)
+}
+
+func Show(w http.ResponseWriter, r *http.Request) {
+	db := dbConn()
+	nId := r.URL.Query().Get("id")
+	rows, err := db.Query(`SELECT * FROM public."users" WHERE "user_id"=$1`, nId)
+	CheckError(err)
+	usr := User{}
+	for rows.Next() {
+		var id int
+		var username, city, email, password string
+		err = rows.Scan(&id, &username, &password,  &city, &email)
+		CheckError(err)
+		usr.Id = id
+		usr.Username = username
+		usr.Email = email
+		usr.City = city
+	}
+	tmpl.ExecuteTemplate(w, "Show", usr)
+	defer db.Close()
+}
+
+func Insert(w http.ResponseWriter, r *http.Request) {
+	db := dbConn()
+	//If it's a post request, assign a variable to the value returned in each field of the New page.
+	if r.Method == "POST" {
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+		city := r.FormValue("city")
+		email := r.FormValue("email")
+		//prepare a query to insert the data into the database
+		insForm, err := db.Prepare(`INSERT INTO public.users(username,password, city, email) VALUES ($1,$2, $3, $4)`)
+		//check for  and handle any errors
+		CheckError(err)
+		//execute the query using the form data
+		insForm.Exec(username, password, city, email)
+		//print out added data in terminal
+		log.Println("INSERT: Username: " + username + " | City: " + city + " | Email: " + email)
+	}
+	defer db.Close()
+	http.Redirect(w, r, "/", 301)
+}
+
+func CheckError(err error) {
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-	pingErr := db.Ping()
-	if pingErr != nil {
-		log.Fatal(pingErr)
-	}
-	fmt.Println("Connected!")
+}
+
+
+func main() {
+	//Provide address server will be provided on
+	log.Println("Server started on: http://localhost:8080")
+	//Create and serve a route for the Index function
+	http.HandleFunc("/", Index)
+	http.HandleFunc("/show", Show)
+	http.HandleFunc("/new", New)
+	http.HandleFunc("/insert", Insert)
+	http.ListenAndServe(":8080", nil)
 }
