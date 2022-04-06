@@ -87,33 +87,24 @@ func New(w http.ResponseWriter, r *http.Request) {
 }
 
 func Edit(w http.ResponseWriter, r *http.Request) {
-	db := dbConn()
 	nId := r.URL.Query().Get("id")
-	rows, err := db.Query(`SELECT * FROM public."users" WHERE "user_id"=$1`, nId)
-	CheckError(err)
-	usr := User{}
-	for rows.Next() {
-		var id int
-		var username, city, email, password string
-		err = rows.Scan(&id, &username, &city, &email, &password)
-		CheckError(err)
-		usr.Id = id
-		usr.Username = username
-		usr.Password = password
-		usr.Email = email
-		usr.City = city
-	}
+	usr := getUser(nId)
 	tmpl.ExecuteTemplate(w, "Edit", usr)
 	//defer db.Close()
 }
 
 func Show(w http.ResponseWriter, r *http.Request) {
-	//connect to the db
-	db := dbConn()
-	//assign a variable to the id passed in the URL when view is clicked
 	nId := r.URL.Query().Get("id")
+	usr := getUser(nId)
+	tmpl.ExecuteTemplate(w, "Show", usr)
+}
+
+// this needs to return a user or type User
+func getUser(id string) User {
+	//connect to database
+	db := dbConn()
 	//run a query against the db filtering the user_id table using the passed id
-	rows, err := db.Query(`SELECT * FROM public."users" WHERE "user_id"=$1`, nId)
+	rows, err := db.Query(`SELECT * FROM public."users" WHERE "user_id"=$1`, id)
 	//handle error
 	CheckError(err)
 	//construct a User
@@ -128,9 +119,8 @@ func Show(w http.ResponseWriter, r *http.Request) {
 		usr.Email = email
 		usr.City = city
 	}
-	//Execute the Show template using the Users data
-	tmpl.ExecuteTemplate(w, "Show", usr)
 	defer db.Close()
+	return usr
 }
 
 func Insert(w http.ResponseWriter, r *http.Request) {
