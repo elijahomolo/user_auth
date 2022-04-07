@@ -53,9 +53,9 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	//Handle any errors
 	CheckError(err)
 	//Define and populate a User struct from the returned data from the query
-	usr := &models.User{}
+	usr := models.User{}
 	//The list of Users that will be passed to the html template
-	res := []*models.User{}
+	res := []models.User{}
 	//Loop through each row and populate a User
 	for rows.Next() {
 		var id int
