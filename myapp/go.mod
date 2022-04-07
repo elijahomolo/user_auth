@@ -1,4 +1,4 @@
-module myapp
+module github.com/eomolo/user_auth/myapp
 
 go 1.17
 

@@ -9,16 +9,9 @@ import (
 	"net/http"
 	"os"
 	"text/template"
+	"github.com/eomolo/user_auth/myapp/models"
 )
 
-// define a user model
-type User struct {
-	Id       int
-	Username string
-	City     string
-	Email    string
-	Password string
-}
 
 // load .env file
 func goDotEnvVariable(key string) string {
@@ -60,9 +53,9 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	//Handle any errors
 	CheckError(err)
 	//Define and populate a User struct from the returned data from the query
-	usr := User{}
+	usr := &models.User{}
 	//The list of Users that will be passed to the html template
-	res := []User{}
+	res := []*models.User{}
 	//Loop through each row and populate a User
 	for rows.Next() {
 		var id int
@@ -100,7 +93,7 @@ func Show(w http.ResponseWriter, r *http.Request) {
 }
 
 // this needs to return a user or type User
-func getUser(id string) User {
+func getUser(id string) models.User {
 	//connect to database
 	db := dbConn()
 	//run a query against the db filtering the user_id table using the passed id
@@ -108,7 +101,7 @@ func getUser(id string) User {
 	//handle error
 	CheckError(err)
 	//construct a User
-	usr := User{}
+	usr := models.User{}
 	for rows.Next() {
 		var id int
 		var username, city, email, password string
