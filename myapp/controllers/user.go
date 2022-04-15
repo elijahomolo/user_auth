@@ -1,9 +1,11 @@
 package controllers
 
 import (
+	"fmt"
 	"github.com/eomolo/user_auth/myapp/models"
 	"github.com/eomolo/user_auth/myapp/utils"
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
 	"text/template"
@@ -92,14 +94,23 @@ func Insert(w http.ResponseWriter, r *http.Request) {
 		password := r.FormValue("password")
 		city := r.FormValue("city")
 		email := r.FormValue("email")
+
+		// encrypt password
+		pass, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			err := "Password Encryption  failed"
+			fmt.Println(err)
+		}
+		pw := string(pass)
+
 		//prepare a query to insert the data into the database
 		insForm, err := db.Prepare(`INSERT INTO public.users(username,password, city, email) VALUES ($1,$2, $3, $4)`)
 		//check for  and handle any errors
 		CheckError(err)
 		//execute the query using the form data
-		insForm.Exec(username, password, city, email)
+		insForm.Exec(username, pw, city, email)
 		//print out added data in terminal
-		log.Println("INSERT: Username: " + username + " | City: " + city + " | Email: " + email)
+		log.Println("INSERT: Username: " + username + " | City: " + city + " | Email: " + email + " " +  pw)
 	}
 	defer db.Close()
 	//redirect to the index page
