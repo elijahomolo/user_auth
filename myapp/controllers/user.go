@@ -1,7 +1,11 @@
 package controllers
 
 import (
+	"database/sql"
 	"fmt"
+	"time"
+
+	"github.com/dgrijalva/jwt-go"
 	"github.com/eomolo/user_auth/myapp/models"
 	"github.com/eomolo/user_auth/myapp/utils"
 	_ "github.com/lib/pq"
@@ -9,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"text/template"
+	//"time"
 )
 
 //define a template
@@ -60,6 +65,64 @@ func Show(w http.ResponseWriter, r *http.Request) {
 	nId := r.URL.Query().Get("id")
 	usr := getUser(nId)
 	tmpl.ExecuteTemplate(w, "Show", usr)
+}
+
+func Login(w http.ResponseWriter, r *http.Request) {
+	tmpl.ExecuteTemplate(w, "Login", nil)
+}
+
+func VerifyUser(w http.ResponseWriter, r *http.Request) {
+	db := utils.DbConn()
+	user := &models.User{}
+	var pw string
+
+	if r.Method == "POST" {
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+		pw = password
+		row := db.QueryRow(`SELECT "username", "password" FROM public."users" WHERE "username"=$1`, username)
+		switch err := row.Scan(&username, &password)
+		err {
+		case sql.ErrNoRows:
+			log.Println("User not found!")
+			http.Redirect(w, r, "/error", 404)
+		case nil:
+			user.Username = username
+			user.Password = password
+		default:
+			log.Println("could not scan")
+		}
+
+		errf := bcrypt.CompareHashAndPassword([]byte(password), []byte(pw))
+		if errf != nil && errf == bcrypt.ErrMismatchedHashAndPassword { //Password does not match!
+			log.Println("password does not match")
+			http.Redirect(w, r, "/error", 401)
+		}
+
+
+		expiresAt := time.Now().Add(time.Minute * 100000).Unix()
+
+		tk := &models.Token{
+			UserID: user.Id,
+			Username:   user.Username,
+			Email:  user.Email,
+			StandardClaims: &jwt.StandardClaims{
+				ExpiresAt: expiresAt,
+			},
+		}
+
+		token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), tk)
+
+		tokenString, error := token.SignedString([]byte("secret"))
+		if error != nil {
+			fmt.Println(error)
+		}
+
+		var resp = map[string]interface{}{"status": false, "message": "logged in"}
+		resp["token"] = tokenString //Store the token in the response
+		resp["user"] = user
+		http.Redirect(w, r, "/", 301)
+	}
 }
 
 // this needs to return a user or type User

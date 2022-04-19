@@ -12,6 +12,8 @@ func Handlers() *mux.Router {
 	//Create and serve a route for the Index function
 
 	r.HandleFunc("/", controllers.Index)
+	r.HandleFunc("/login", controllers.Login)
+	r.HandleFunc("/verify", controllers.VerifyUser)
 	r.HandleFunc("/show", controllers.Show)
 	r.HandleFunc("/edit", controllers.Edit)
 	r.HandleFunc("/new", controllers.New)
